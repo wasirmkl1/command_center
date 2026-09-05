@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module-by-Module Tracker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Geist:wght@300;400;500;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Geist', sans-serif; background: #eef2f6; color: #11181c; padding: 18px 12px 60px; }
+  .wrap { max-width: 880px; margin: 0 auto; }
+
+  .header { background: linear-gradient(135deg,#1d4ed8,#7c3aed); color:#fff; border-radius:14px; padding:18px 20px; margin-bottom:14px; }
+  .header h1 { font-size:19px; font-weight:700; }
+  .header .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:10px; }
+  .header label { font-size:12px; opacity:.9; }
+  .header select { font-family:inherit; font-size:13px; font-weight:600; padding:5px 9px; border-radius:7px; border:none; color:#11181c; }
+  .saved { font-size:10px; opacity:.85; font-family:'Geist Mono',monospace; margin-left:auto; }
+
+  .tabs { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+  .tb { padding:9px 15px; border-radius:22px; font-size:12.5px; font-weight:600; cursor:pointer; border:1px solid #d4dbe0; background:#fff; color:#5b6770; }
+  .tb.active { background:#11181c; color:#fff; border-color:#11181c; }
+  .tb .cnt { font-family:'Geist Mono',monospace; font-size:10px; background:#ef4444; color:#fff; border-radius:9px; padding:1px 6px; margin-left:4px; }
+  .tb.active .cnt { background:#fff; color:#ef4444; }
+
+  .view { display:block; }
+  .view.hidden { display:none; }
+
+  .card { background:#fff; border-radius:12px; padding:15px 17px; margin-bottom:14px; box-shadow:0 2px 8px rgba(0,0,0,.05); }
+
+  .weekbar { display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+  .weekbar button.nav { width:30px; height:30px; border-radius:8px; border:1px solid #d4dbe0; background:#f8fafc; font-size:15px; cursor:pointer; color:#11181c; }
+  .weekbar select { font-family:inherit; font-size:13px; padding:7px 10px; border-radius:8px; border:1px solid #d4dbe0; background:#f8fafc; font-weight:600; flex:1; min-width:180px; }
+  .weekbar .hrs { font-family:'Geist Mono',monospace; font-size:11px; color:#b45309; background:#fef6ec; padding:5px 9px; border-radius:7px; white-space:nowrap; }
+  .weekbar .pct { font-family:'Geist Mono',monospace; font-size:12px; font-weight:700; color:#16a34a; white-space:nowrap; }
+
+  .phasetag { font-size:10px; color:#7c3aed; font-weight:700; text-transform:uppercase; letter-spacing:.06em; margin-bottom:10px; }
+  .badgerow { display:flex; gap:5px; margin-bottom:10px; flex-wrap:wrap; }
+  .bdg { font-size:9px; font-weight:700; padding:2px 7px; border-radius:8px; text-transform:uppercase; letter-spacing:.04em; }
+  .bdg.exam { background:#fde8e8; color:#c2410c; }
+  .bdg.project { background:#f1eafd; color:#6d28d9; }
+  .bdg.new { background:#e6f6ec; color:#15803d; }
+  .bdg.critical { background:#fdeee2; color:#c2410c; }
+
+  .grp { font-size:11px; font-weight:700; color:#38444c; margin:14px 0 5px; display:flex; align-items:center; gap:7px; }
+  .grp .gh { font-family:'Geist Mono',monospace; font-size:9.5px; color:#8a949c; font-weight:500; }
+  .grp .ess { font-size:8.5px; font-weight:700; color:#fff; background:#ef4444; border-radius:6px; padding:1px 6px; letter-spacing:.03em; }
+
+  label.chk { display:flex; align-items:flex-start; gap:9px; font-size:12.5px; color:#38444c; line-height:1.45; padding:5px 0; cursor:pointer; border-bottom:1px solid #f0f3f5; }
+  label.chk:last-child { border-bottom:none; }
+  label.chk input { width:16px; height:16px; margin-top:1px; accent-color:#2563eb; cursor:pointer; flex-shrink:0; }
+  label.chk.done span { text-decoration:line-through; color:#aeb6bc; }
+
+  .note { font-size:11px; color:#5b6770; line-height:1.55; background:#f5f8fa; border-left:3px solid #d4dbe0; border-radius:6px; padding:9px 11px; margin-top:14px; }
+  .note strong { color:#11181c; }
+
+  .rem-head { font-size:12px; color:#5b6770; margin-bottom:14px; line-height:1.5; }
+  .rem-head b { color:#c2410c; }
+  .rem-sec-title { font-size:12px; font-weight:700; margin:16px 0 6px; }
+  .rem-empty { font-size:12px; color:#16a34a; padding:10px 0; }
+  label.rem { display:flex; align-items:flex-start; gap:9px; font-size:12px; color:#38444c; line-height:1.4; padding:6px 0; border-bottom:1px solid #f0f3f5; cursor:pointer; }
+  label.rem input { width:15px; height:15px; margin-top:1px; cursor:pointer; flex-shrink:0; }
+  label.rem .wn { font-family:'Geist Mono',monospace; font-size:10px; font-weight:700; min-width:34px; flex-shrink:0; }
+  label.rem .ct { font-size:9px; color:#8a949c; }
+  .p1 label.rem input { accent-color:#ef4444; }
+  .p1 .wn { color:#c2410c; }
+  .p2 label.rem input { accent-color:#d97706; }
+  .p2 .wn { color:#b45309; }
+  .p3 label.rem input { accent-color:#16a34a; }
+  .p3 .wn { color:#15803d; }
+
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:9px; margin-bottom:14px; }
+  .stat { background:#fff; border-radius:11px; padding:13px 8px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,.05); }
+  .stat .n { font-family:'Geist Mono',monospace; font-size:21px; font-weight:700; color:#1d4ed8; }
+  .stat input { width:100%; border:none; text-align:center; font-family:'Geist Mono',monospace; font-size:21px; font-weight:700; color:#7c3aed; background:transparent; }
+  .stat input:focus { outline:none; background:#f3f0fb; border-radius:5px; }
+  .stat .l { font-size:9px; color:#8a949c; margin-top:5px; text-transform:uppercase; letter-spacing:.03em; }
+  @media (max-width:620px){ .stats{ grid-template-columns:repeat(2,1fr);} }
+
+  .progwrap { margin-bottom:12px; }
+  .progwrap .lab { display:flex; justify-content:space-between; font-size:11px; color:#5b6770; margin-bottom:6px; font-weight:600; }
+  .track { height:11px; background:#e3e8ec; border-radius:6px; overflow:hidden; }
+  .fill { height:100%; border-radius:6px; transition:width .3s; }
+  .foot { text-align:center; font-size:10px; color:#8a949c; font-style:italic; margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>📅 Module-by-Module Tracker</h1>
+    <div class="row">
+      <label for="curSel">I'm currently on</label>
+      <select id="curSel"></select>
+      <span class="saved" id="savedMsg">Auto-saved in this browser ✓</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tb active" id="tab-weekly" data-v="weekly">📋 Module</button>
+    <button class="tb" id="tab-remaining" data-v="remaining">🔥 Remaining <span class="cnt" id="remCnt">0</span></button>
+    <button class="tb" id="tab-overview" data-v="overview">📊 Overview</button>
+  </div>
+
+  <div class="view" id="view-weekly">
+    <div class="card">
+      <div class="weekbar">
+        <button class="nav" id="prevW">‹</button>
+        <select id="weekSel"></select>
+        <button class="nav" id="nextW">›</button>
+        <span class="hrs" id="weekHrs"></span>
+        <span class="pct" id="weekPct"></span>
+      </div>
+      <div id="weekMeta"></div>
+      <div id="weekBody"></div>
+    </div>
+  </div>
+
+  <div class="view hidden" id="view-remaining">
+    <div class="card">
+      <div class="rem-head" id="remHead"></div>
+      <div id="remBody"></div>
+    </div>
+  </div>
+
+  <div class="view hidden" id="view-overview">
+    <div class="stats">
+      <div class="stat"><div class="n" id="ovWeeks">0</div><div class="l">Modules complete /40</div></div>
+      <div class="stat"><div class="n" id="ovTasks">0</div><div class="l">Tasks done</div></div>
+      <div class="stat"><div class="n" id="ovHours">0</div><div class="l">Hours done</div></div>
+      <div class="stat"><div class="n" id="ovEss" style="color:#ef4444">0</div><div class="l">Essentials left</div></div>
+    </div>
+    <div class="card">
+      <div class="progwrap"><div class="lab"><span>Tasks completed</span><span id="ovTaskPct">0%</span></div><div class="track"><div class="fill" id="ovTaskFill" style="background:linear-gradient(90deg,#2563eb,#16a34a)"></div></div></div>
+      <div class="progwrap"><div class="lab"><span>Hours invested (of <span id="ovTotH">0</span>h)</span><span id="ovHourPct">0%</span></div><div class="track"><div class="fill" id="ovHourFill" style="background:linear-gradient(90deg,#d97706,#16a34a)"></div></div></div>
+      <div class="foot">A module counts as "complete" only when every task in it is ticked.</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><input type="number" id="leetcode" min="0" value="0"><div class="l">LeetCode solved</div></div>
+      <div class="stat"><input type="number" id="streak" min="0" value="0"><div class="l">Commit streak</div></div>
+      <div class="stat"><input type="number" id="articles" min="0" value="0"><div class="l">Articles</div></div>
+      <div class="stat"><input type="number" id="apps" min="0" value="0"><div class="l">Apps sent</div></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="weeks.js"></script>
+<script src="sync.js"></script>
+<script>
+var WEEKS = window.WEEKS;   // loaded from weeks.js (single source of truth)
+
+// ---------- storage ----------
+function load(k,d){ try{ var v=JSON.parse(localStorage.getItem(k)); return v===null?d:v; }catch(e){ return d; } }
+function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); flash(); if(window.CloudSync) window.CloudSync.push(); }
+var flashT;
+function flash(){ var m=document.getElementById('savedMsg'); if(!m)return; m.textContent='Saved '+new Date().toLocaleTimeString()+' ✓'; clearTimeout(flashT); flashT=setTimeout(function(){ m.textContent='Auto-saved in this browser ✓'; },1800); }
+
+var DONE = load('wt_done', {});
+var CUR = load('wt_current', 19);
+var selWeek = CUR;
+var view = 'weekly';
+
+var CATS = [
+  { key:'course',  label:'📚 Course / Core',     pri:1, w:0.32 },
+  { key:'extra',   label:'⚡ Self-study',         pri:3, w:0.18 },
+  { key:'leet',    label:'🧩 LeetCode / DSA',     pri:2, w:0.12 },
+  { key:'project', label:'🔨 Project',            pri:1, w:0.25 },
+  { key:'git',     label:'🐙 Git / GitHub',       pri:2, w:0.05 },
+  { key:'eng',     label:'🌍 English',            pri:2, w:0.08 }
+];
+var CATM = {}; CATS.forEach(function(c){ CATM[c.key]=c; });
+
+function weekByN(n){ for(var i=0;i<WEEKS.length;i++){ if(WEEKS[i].n===n) return WEEKS[i]; } return null; }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function taskId(n,cat,i){ return n+'_'+cat+'_'+i; }
+function isDone(id){ return !!DONE[id]; }
+function toggle(id,v){ if(v){ DONE[id]=1; } else { delete DONE[id]; } save('wt_done',DONE); }
+
+function catHours(week,catKey){
+  var arr = week.cats[catKey]||[]; if(!arr.length) return 0;
+  var sumW = 0;
+  CATS.forEach(function(c){ if(week.cats[c.key] && week.cats[c.key].length) sumW += c.w; });
+  return week.hrs * (CATM[catKey].w / sumW);
+}
+function taskHours(week,catKey){ var arr=week.cats[catKey]||[]; if(!arr.length) return 0; return catHours(week,catKey)/arr.length; }
+
+// ---------- weekly view ----------
+function renderWeek(){
+  var w = weekByN(selWeek); if(!w) return;
+  document.getElementById('weekSel').value = String(selWeek);
+  var tot=0, done=0;
+  CATS.forEach(function(c){ var arr=w.cats[c.key]||[]; arr.forEach(function(t,i){ tot++; if(isDone(taskId(w.n,c.key,i))) done++; }); });
+  document.getElementById('weekHrs').textContent = '~'+w.hrs+'h target';
+  document.getElementById('weekPct').textContent = tot? Math.round(done/tot*100)+'% ('+done+'/'+tot+')' : '0%';
+
+  var meta = '<div class="phasetag">'+esc(w.phase)+'</div>';
+  if(w.badges && w.badges.length){
+    meta += '<div class="badgerow">';
+    w.badges.forEach(function(b){ var lab={exam:'EXAM',project:'PROJECT',new:'+ NEW SKILL',critical:'CRITICAL'}[b]||b; meta += '<span class="bdg '+b+'">'+lab+'</span>'; });
+    meta += '</div>';
+  }
+  document.getElementById('weekMeta').innerHTML = meta;
+
+  var html='';
+  CATS.forEach(function(c){
+    var arr = w.cats[c.key]||[]; if(!arr.length) return;
+    html += '<div class="grp">'+c.label+' <span class="gh">~'+catHours(w,c.key).toFixed(1)+'h</span>'+(c.pri===1?' <span class="ess">MUST</span>':'')+'</div>';
+    arr.forEach(function(t,i){
+      var id=taskId(w.n,c.key,i); var d=isDone(id);
+      html += '<label class="chk'+(d?' done':'')+'"><input type="checkbox" data-id="'+id+'" '+(d?'checked':'')+'><span>'+esc(t)+'</span></label>';
+    });
+  });
+  if(w.note) html += '<div class="note">⚡ '+w.note+'</div>';
+  document.getElementById('weekBody').innerHTML = html;
+}
+
+// ---------- remaining view ----------
+function renderRemaining(){
+  var groups={1:[],2:[],3:[]};
+  WEEKS.forEach(function(w){
+    if(w.n>CUR) return;
+    CATS.forEach(function(c){
+      var arr=w.cats[c.key]||[];
+      arr.forEach(function(t,i){
+        var id=taskId(w.n,c.key,i);
+        if(!isDone(id)) groups[c.pri].push({ n:w.n, id:id, text:t, cat:c.label });
+      });
+    });
+  });
+  [1,2,3].forEach(function(p){ groups[p].sort(function(a,b){ return a.n-b.n; }); });
+
+  var essLeft=groups[1].length, total=groups[1].length+groups[2].length+groups[3].length;
+  document.getElementById('remHead').innerHTML = '<b>'+essLeft+' must-do essential'+(essLeft===1?'':'s')+'</b> + '+(groups[2].length)+' core habits + '+(groups[3].length)+' self-study items still open across Modules 1–'+CUR+'. Tackle red first. (Set your current module above so future modules are not flagged.)';
+
+  var titles={1:'🔴 Must-do essentials (Course &amp; Projects) — do these first',2:'🟡 Core habits (LeetCode · Git · English)',3:'🟢 Recommended (Self-study)'};
+  var html='';
+  [1,2,3].forEach(function(p){
+    html += '<div class="p'+p+'"><div class="rem-sec-title">'+titles[p]+' <span style="color:#8a949c;font-weight:500">('+groups[p].length+')</span></div>';
+    if(!groups[p].length){ html += '<div class="rem-empty">All clear here — nothing left. ✅</div>'; }
+    else { groups[p].forEach(function(it){
+      html += '<label class="rem"><input type="checkbox" data-id="'+it.id+'"><span class="wn">M'+it.n+'</span><span>'+esc(it.text)+' <span class="ct">· '+it.cat+'</span></span></label>';
+    }); }
+    html += '</div>';
+  });
+  document.getElementById('remBody').innerHTML = html;
+  document.getElementById('remCnt').textContent = total;
+}
+
+// ---------- overview ----------
+function renderOverview(){
+  var totalTasks=0, doneTasks=0, totalH=0, doneH=0, essLeft=0, weeksComplete=0;
+  WEEKS.forEach(function(w){
+    var wt=0, wd=0;
+    CATS.forEach(function(c){
+      var arr=w.cats[c.key]||[]; if(!arr.length) return;
+      var th=taskHours(w,c.key);
+      arr.forEach(function(t,i){
+        totalTasks++; wt++; totalH+=th;
+        var id=taskId(w.n,c.key,i);
+        if(isDone(id)){ doneTasks++; wd++; doneH+=th; }
+        else if(c.pri===1 && w.n<=CUR){ essLeft++; }
+      });
+    });
+    if(wt>0 && wd===wt) weeksComplete++;
+  });
+  document.getElementById('ovWeeks').textContent = weeksComplete;
+  document.getElementById('ovTasks').textContent = doneTasks;
+  document.getElementById('ovHours').textContent = Math.round(doneH);
+  document.getElementById('ovEss').textContent = essLeft;
+  document.getElementById('ovTotH').textContent = Math.round(totalH);
+  var tp = totalTasks? Math.round(doneTasks/totalTasks*100):0;
+  var hp = totalH? Math.round(doneH/totalH*100):0;
+  document.getElementById('ovTaskPct').textContent = tp+'%';
+  document.getElementById('ovHourPct').textContent = hp+'%';
+  document.getElementById('ovTaskFill').style.width = tp+'%';
+  document.getElementById('ovHourFill').style.width = hp+'%';
+}
+
+function refresh(){ document.getElementById('remCnt').textContent; renderRemaining(); renderOverview(); if(view==='weekly') renderWeek(); }
+
+// ---------- events ----------
+function setView(v){
+  view=v;
+  ['weekly','remaining','overview'].forEach(function(x){
+    document.getElementById('view-'+x).classList.toggle('hidden', x!==v);
+    document.getElementById('tab-'+x).classList.toggle('active', x===v);
+  });
+  if(v==='weekly') renderWeek(); else if(v==='remaining') renderRemaining(); else renderOverview();
+}
+document.querySelectorAll('.tb').forEach(function(b){ b.addEventListener('click', function(){ setView(b.getAttribute('data-v')); }); });
+
+function clampWeek(n){ return Math.max(1, Math.min(40, n)); }
+document.getElementById('prevW').addEventListener('click', function(){ selWeek=clampWeek(selWeek-1); save('wt_sel',selWeek); renderWeek(); });
+document.getElementById('nextW').addEventListener('click', function(){ selWeek=clampWeek(selWeek+1); save('wt_sel',selWeek); renderWeek(); });
+document.getElementById('weekSel').addEventListener('change', function(e){ selWeek=parseInt(e.target.value,10); save('wt_sel',selWeek); renderWeek(); });
+document.getElementById('curSel').addEventListener('change', function(e){ CUR=parseInt(e.target.value,10); save('wt_current',CUR); refresh(); });
+
+// checkbox delegation
+document.getElementById('weekBody').addEventListener('change', function(e){
+  if(e.target && e.target.matches('input[type=checkbox]')){ toggle(e.target.getAttribute('data-id'), e.target.checked); renderWeek(); renderOverview(); document.getElementById('remCnt').textContent = countRemaining(); }
+});
+document.getElementById('remBody').addEventListener('change', function(e){
+  if(e.target && e.target.matches('input[type=checkbox]')){ toggle(e.target.getAttribute('data-id'), e.target.checked); renderRemaining(); renderOverview(); }
+});
+function countRemaining(){ var c=0; WEEKS.forEach(function(w){ if(w.n>CUR) return; CATS.forEach(function(cat){ var arr=w.cats[cat.key]||[]; arr.forEach(function(t,i){ if(!isDone(taskId(w.n,cat.key,i))) c++; }); }); }); return c; }
+
+// counters
+['leetcode','streak','articles','apps'].forEach(function(id){
+  var el=document.getElementById(id); el.value=load('wt_'+id,0);
+  el.addEventListener('input', function(){ save('wt_'+id, Number(el.value)||0); });
+});
+
+// ---------- init ----------
+(function init(){
+  var ws=document.getElementById('weekSel'), cs=document.getElementById('curSel');
+  WEEKS.forEach(function(w){
+    var o=document.createElement('option'); o.value=String(w.n); o.textContent='Module '+w.n+' — '+w.title; ws.appendChild(o);
+    var o2=document.createElement('option'); o2.value=String(w.n); o2.textContent='Module '+w.n; cs.appendChild(o2);
+  });
+  selWeek = load('wt_sel', CUR);
+  cs.value=String(CUR); ws.value=String(selWeek);
+  renderWeek(); renderRemaining(); renderOverview();
+})();
+
+// ---------- cloud sync (iPhone <-> laptop) ----------
+function reloadFromStorage(){
+  DONE = load('wt_done', {});
+  CUR = load('wt_current', 13);
+  selWeek = load('wt_sel', CUR);
+  ['leetcode','streak','articles','apps'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=load('wt_'+id,0); });
+  var cs=document.getElementById('curSel'); if(cs) cs.value=String(CUR);
+  var ws=document.getElementById('weekSel'); if(ws) ws.value=String(selWeek);
+  renderWeek(); renderRemaining(); renderOverview();
+}
+if(window.CloudSync){ window.CloudSync.start({ keys:['wt_done','wt_current','wt_sel','wt_leetcode','wt_streak','wt_articles','wt_apps'], onData: reloadFromStorage }); }
+</script>
+</body>
+</html>

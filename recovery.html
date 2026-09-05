@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f1720">
+<title>Recovery Audit — Modules 1–19</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Geist:wght@300;400;500;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Geist', sans-serif; background: #eef2f6; color: #11181c; padding: 18px 12px 60px; }
+  .wrap { max-width: 880px; margin: 0 auto; }
+
+  .header { background: linear-gradient(135deg,#0f766e,#1d4ed8); color:#fff; border-radius:14px; padding:18px 20px; margin-bottom:14px; }
+  .header h1 { font-size:19px; font-weight:700; }
+  .header p { font-size:12px; opacity:.92; margin-top:7px; line-height:1.55; }
+  .header .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  .header label { font-size:12px; opacity:.9; }
+  .header select { font-family:inherit; font-size:13px; font-weight:600; padding:5px 9px; border-radius:7px; border:none; color:#11181c; }
+  .saved { font-size:10px; opacity:.85; font-family:'Geist Mono',monospace; margin-left:auto; }
+
+  .tabs { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+  .tb { padding:9px 15px; border-radius:22px; font-size:12.5px; font-weight:600; cursor:pointer; border:1px solid #d4dbe0; background:#fff; color:#5b6770; }
+  .tb.active { background:#11181c; color:#fff; border-color:#11181c; }
+  .tb .cnt { font-family:'Geist Mono',monospace; font-size:10px; background:#ef4444; color:#fff; border-radius:9px; padding:1px 6px; margin-left:4px; }
+  .tb.active .cnt { background:#fff; color:#ef4444; }
+
+  .view.hidden { display:none; }
+  .card { background:#fff; border-radius:12px; padding:15px 17px; margin-bottom:14px; box-shadow:0 2px 8px rgba(0,0,0,.05); }
+
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:9px; margin-bottom:14px; }
+  .stat { background:#fff; border-radius:11px; padding:13px 8px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,.05); }
+  .stat .n { font-family:'Geist Mono',monospace; font-size:21px; font-weight:700; color:#0f766e; }
+  .stat .l { font-size:9px; color:#8a949c; margin-top:5px; text-transform:uppercase; letter-spacing:.03em; line-height:1.35; }
+  @media (max-width:620px){ .stats{ grid-template-columns:repeat(2,1fr);} }
+
+  .progwrap { margin-bottom:12px; }
+  .progwrap .lab { display:flex; justify-content:space-between; font-size:11px; color:#5b6770; margin-bottom:6px; font-weight:600; }
+  .track { height:11px; background:#e3e8ec; border-radius:6px; overflow:hidden; }
+  .fill { height:100%; border-radius:6px; transition:width .3s; }
+  .foot { text-align:center; font-size:10px; color:#8a949c; font-style:italic; margin-top:6px; line-height:1.5; }
+
+  .toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .toolbar button { font-family:inherit; font-size:11.5px; font-weight:600; padding:7px 12px; border-radius:8px; border:1px solid #d4dbe0; background:#fff; color:#38444c; cursor:pointer; }
+  .toolbar button.on { background:#0f766e; color:#fff; border-color:#0f766e; }
+
+  .trk { border:1px solid #e3e8ec; border-radius:11px; margin-bottom:11px; overflow:hidden; }
+  .trk-h { display:flex; align-items:center; gap:9px; padding:12px 14px; cursor:pointer; background:#f8fafc; flex-wrap:wrap; }
+  .trk-h .ord { font-family:'Geist Mono',monospace; font-size:10px; font-weight:700; color:#fff; background:#0f766e; border-radius:6px; padding:2px 7px; flex-shrink:0; }
+  .trk-h .nm { font-size:13.5px; font-weight:700; }
+  .trk-h .wk { font-family:'Geist Mono',monospace; font-size:10px; color:#8a949c; }
+  .trk-h .badge { margin-left:auto; font-family:'Geist Mono',monospace; font-size:10px; font-weight:700; padding:3px 8px; border-radius:7px; white-space:nowrap; }
+  .trk-h .badge.debt { background:#fde8e8; color:#c2410c; }
+  .trk-h .badge.clear { background:#e6f6ec; color:#15803d; }
+  .trk-h .badge.todo { background:#eef2f6; color:#8a949c; }
+  .trk-h .due { font-family:'Geist Mono',monospace; font-size:9.5px; font-weight:700; color:#1d4ed8; background:#eef3fd; border:1px solid #cddcf6; border-radius:6px; padding:2px 7px; white-space:nowrap; }
+  .qsec h3 .due { font-family:'Geist Mono',monospace; font-size:9.5px; font-weight:700; color:#1d4ed8; background:#eef3fd; border:1px solid #cddcf6; border-radius:6px; padding:2px 7px; white-space:nowrap; }
+  .trk-why { font-size:11px; color:#5b6770; line-height:1.5; padding:0 14px 11px; background:#f8fafc; }
+  .trk-b { padding:6px 14px 12px; display:none; }
+  .trk.open .trk-b { display:block; }
+
+  .wkh { font-family:'Geist Mono',monospace; font-size:10.5px; font-weight:700; color:#1d4ed8; margin:14px 0 3px; text-transform:uppercase; letter-spacing:.04em; }
+  .wkt { font-size:12px; font-weight:600; color:#11181c; margin-bottom:8px; }
+  .cath { font-size:10px; font-weight:700; color:#8a949c; text-transform:uppercase; letter-spacing:.05em; margin:11px 0 4px; }
+
+  .task { padding:8px 0; border-bottom:1px solid #f0f3f5; }
+  .task:last-child { border-bottom:none; }
+  .task .txt { font-size:12.5px; color:#38444c; line-height:1.5; margin-bottom:7px; }
+  .seg { display:flex; gap:5px; flex-wrap:wrap; }
+  .seg button { font-family:'Geist Mono',monospace; font-size:10.5px; font-weight:600; padding:5px 9px; border-radius:7px; border:1px solid #d4dbe0; background:#fff; color:#8a949c; cursor:pointer; white-space:nowrap; }
+  .seg button:hover { border-color:#8a949c; }
+  .seg button.sel[data-v="0"] { background:#dc2626; color:#fff; border-color:#dc2626; }
+  .seg button.sel[data-v="1"] { background:#ea580c; color:#fff; border-color:#ea580c; }
+  .seg button.sel[data-v="2"] { background:#0891b2; color:#fff; border-color:#0891b2; }
+  .seg button.sel[data-v="3"] { background:#16a34a; color:#fff; border-color:#16a34a; }
+
+  .scalekey { font-size:11px; color:#5b6770; line-height:1.7; background:#f5f8fa; border-left:3px solid #0f766e; border-radius:6px; padding:11px 13px; margin-bottom:14px; }
+  .scalekey b { color:#11181c; }
+  .scalekey .k { font-family:'Geist Mono',monospace; font-weight:700; }
+
+  .qsec { margin-bottom:18px; }
+  .qsec h3 { font-size:13px; font-weight:700; margin-bottom:3px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .qsec h3 .ord { font-family:'Geist Mono',monospace; font-size:10px; font-weight:700; color:#fff; background:#0f766e; border-radius:6px; padding:2px 7px; }
+  .qsec h3 .hh { font-family:'Geist Mono',monospace; font-size:10.5px; color:#b45309; background:#fef6ec; padding:2px 8px; border-radius:7px; margin-left:auto; }
+  .qsec .sub { font-size:11px; color:#5b6770; line-height:1.5; margin-bottom:9px; }
+  label.q { display:flex; align-items:flex-start; gap:9px; font-size:12px; color:#38444c; line-height:1.45; padding:7px 0; border-bottom:1px solid #f0f3f5; cursor:pointer; }
+  label.q input { width:15px; height:15px; margin-top:2px; cursor:pointer; flex-shrink:0; accent-color:#16a34a; }
+  label.q.done span.t { text-decoration:line-through; color:#aeb6bc; }
+  label.q .wn { font-family:'Geist Mono',monospace; font-size:10px; font-weight:700; min-width:32px; flex-shrink:0; color:#c2410c; }
+  label.q .tag { font-family:'Geist Mono',monospace; font-size:9px; padding:1px 5px; border-radius:5px; flex-shrink:0; }
+  label.q .tag.n0 { background:#fde8e8; color:#b91c1c; }
+  label.q .tag.n1 { background:#fdeee2; color:#c2410c; }
+
+  .tierrow { display:flex; align-items:flex-start; gap:9px; padding:7px 0; border-bottom:1px solid #f0f3f5; }
+  .tierrow:last-child { border-bottom:none; }
+  .tchip { font-family:'Geist Mono',monospace; font-size:11px; font-weight:700; color:#fff; border-radius:6px; padding:2px 8px; flex-shrink:0; min-width:30px; text-align:center; }
+  .tchip.concept { background:#dc2626; }
+  .tchip.habit { background:#ea580c; }
+  .tchip.practice { background:#0891b2; }
+  .tchip.resource { background:#8a949c; }
+  .tname { font-size:12px; font-weight:700; flex-shrink:0; min-width:118px; }
+  .tnote { font-size:11px; color:#5b6770; line-height:1.5; }
+  @media (max-width:620px){ .tierrow{ flex-wrap:wrap; } .tname{ min-width:0; } .tnote{ flex-basis:100%; } }
+  label.q .tag.tier { color:#fff; }
+  label.q .tag.tier.concept { background:#dc2626; }
+  label.q .tag.tier.habit { background:#ea580c; }
+  label.q .tag.tier.practice { background:#0891b2; }
+  label.q .tag.tier.resource { background:#8a949c; }
+
+  .empty { font-size:12.5px; color:#5b6770; line-height:1.6; padding:6px 0; }
+  .empty b { color:#15803d; }
+
+  .cap { font-size:12px; line-height:1.65; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9px; padding:12px 14px; margin-bottom:14px; color:#14532d; }
+  .cap b { font-weight:700; }
+  .cap.warn { background:#fef6ec; border-color:#fed7aa; color:#7c2d12; }
+
+  h2.sec { font-size:15px; font-weight:700; margin:22px 0 9px; padding-bottom:7px; border-bottom:2px solid #e3e8ec; }
+  h2.sec:first-child { margin-top:0; }
+  .sprint { font-size:12.5px; color:#38444c; line-height:1.65; }
+  .sprint p { margin-bottom:10px; }
+  .sprint ul, .sprint ol { margin:0 0 12px 20px; }
+  .sprint li { margin-bottom:6px; }
+  .loop { display:flex; align-items:flex-start; gap:11px; padding:10px 0; border-bottom:1px solid #f0f3f5; }
+  .loop:last-child { border-bottom:none; }
+  .loop .t { font-family:'Geist Mono',monospace; font-size:10.5px; font-weight:700; color:#fff; background:#0f766e; border-radius:6px; padding:3px 8px; flex-shrink:0; min-width:56px; text-align:center; }
+  .loop .b { font-size:12.5px; line-height:1.55; }
+  .loop .b b { color:#11181c; }
+  .floor { font-size:12.5px; line-height:1.65; background:#fef6ec; border:1px solid #fed7aa; border-radius:9px; padding:12px 14px; margin:12px 0; color:#7c2d12; }
+  .floor b { color:#c2410c; }
+  .warn-list { font-size:12.5px; line-height:1.6; }
+  .warn-list li { margin-bottom:7px; }
+  .sprint b { color:#11181c; }
+  table.sp { width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:14px; }
+  table.sp th { text-align:left; padding:7px 8px; background:#f8fafc; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:#5b6770; border-bottom:1px solid #e3e8ec; }
+  table.sp td { padding:7px 8px; border-bottom:1px solid #f0f3f5; vertical-align:top; line-height:1.5; }
+  table.sp td.d { font-family:'Geist Mono',monospace; font-size:10.5px; font-weight:700; color:#0f766e; white-space:nowrap; }
+  .rule { font-size:12.5px; line-height:1.6; padding:10px 13px; border-radius:8px; background:#f5f8fa; border-left:3px solid #1d4ed8; margin-bottom:9px; }
+  .rule b { color:#11181c; }
+  .backlink { display:inline-block; font-size:11.5px; color:#1d4ed8; text-decoration:none; font-weight:600; margin-bottom:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="backlink" href="index.html">‹ Back to hub</a>
+
+  <div class="header">
+    <h1>🩺 Recovery Audit</h1>
+    <p>Score what you <em>actually</em> know from Module 1 onward — honestly. Vague debt feels infinite. A scored list is finite, and a finite list can be finished.</p>
+    <div class="row">
+      <label for="thruSel">Audit modules 1 through</label>
+      <select id="thruSel"></select>
+      <span class="saved" id="savedMsg">Auto-saved in this browser ✓</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tb active" data-v="audit">🔍 Audit <span class="cnt" id="cScored">0</span></button>
+    <button class="tb" data-v="queue">🔥 Debt Queue <span class="cnt" id="cDebt">0</span></button>
+    <button class="tb" data-v="sprint">🗓 Sprint Plan</button>
+  </div>
+
+  <!-- ================= AUDIT ================= -->
+  <div class="view" id="view-audit">
+    <div class="stats">
+      <div class="stat"><div class="n" id="sConcept" style="color:#dc2626">0</div><div class="l">Concept debt<br>(the real gaps)</div></div>
+      <div class="stat"><div class="n" id="sHabit" style="color:#ea580c">0</div><div class="l">Habit debt<br>(cheap to clear)</div></div>
+      <div class="stat"><div class="n" id="sHours" style="color:#b45309">0h</div><div class="l">Est. hours to clear</div></div>
+      <div class="stat"><div class="n" id="sMast" style="color:#16a34a">—</div><div class="l">Avg mastery /3</div></div>
+    </div>
+    <div class="card" id="tierBox"></div>
+
+    <div class="card">
+      <div class="progwrap"><div class="lab"><span>Audit completed</span><span id="pAuditTxt">0%</span></div><div class="track"><div class="fill" id="pAudit" style="background:linear-gradient(90deg,#0f766e,#16a34a); width:0%"></div></div></div>
+      <div class="foot">You cannot fix what you have not measured. Finish the audit before you study anything.</div>
+    </div>
+
+    <div class="scalekey">
+      Score every item with the answer that is <b>true</b>, not the one that feels better:<br>
+      <span class="k">0</span> — never really did this<br>
+      <span class="k">1</span> — <b>AI did it for me / I saw it but cannot reproduce it</b><br>
+      <span class="k">2</span> — I can do it with docs open &nbsp;<b>← this is fine, this is not debt</b><br>
+      <span class="k">3</span> — I can do it cold, I could teach it<br>
+      Only <b>0</b> and <b>1</b> become debt. Professionals work at 2 all day long.<br><br>
+      Flagged items are then split into <b>four tiers</b> (breakdown below). Only <b>concept</b> and <b>habit</b> debt is charged hours — an unwatched YouTube video is not a missing skill, and treating it like one is how a recoverable gap starts to feel like a catastrophe.
+    </div>
+
+    <div class="toolbar">
+      <button id="btnCore" class="on">Core only (course + project)</button>
+      <button id="btnAll">Everything</button>
+      <button id="btnExpand">Expand all</button>
+      <button id="btnCopy">📋 Copy summary</button>
+    </div>
+
+    <div id="auditBody"></div>
+  </div>
+
+  <!-- ================= QUEUE ================= -->
+  <div class="view hidden" id="view-queue">
+    <div id="capBox"></div>
+    <div class="toolbar">
+      <button id="btnQCore" class="on">Concept + habit only</button>
+      <button id="btnQAll">Include practice + resources</button>
+    </div>
+    <div class="card">
+      <div id="queueBody"></div>
+    </div>
+    <div class="foot">Order is dependency order, not calendar order. Clear a track before starting the next one — otherwise you build on sand again.</div>
+  </div>
+
+  <!-- ================= SPRINT ================= -->
+  <div class="view hidden" id="view-sprint">
+    <div class="card sprint">
+      <h2 class="sec">Start here — your first hour</h2>
+      <p>The planning is finished. <b>Day 1</b>, one hour, no decisions to make:</p>
+      <div class="loop"><span class="t">0:00</span><span class="b"><b>Blank page, 10 minutes.</b> Write from memory, nothing open: what is scope? What does a function return? What is the difference between a parameter and an argument? What do <code>*args</code> and <code>**kwargs</code> do? It will be short and it will be uncomfortable. That is the measurement, not the failure.</span></div>
+      <div class="loop"><span class="t">0:10</span><span class="b"><b>Learn, 30 minutes, one source only.</b> Functions and scope. Stop at 30 minutes even if you are mid-sentence. One source — not four tabs.</span></div>
+      <div class="loop"><span class="t">0:40</span><span class="b"><b>Empty file, 20 minutes, no reference.</b> Write five functions: one with a default parameter, one returning two values, one taking <code>*args</code>, one taking <code>**kwargs</code>, one that mutates a list passed into it — and notice what that does.</span></div>
+      <div class="loop"><span class="t">1:00</span><span class="b"><b>Close the laptop.</b> Done for the day on backfill.</span></div>
+      <p><b>The goal of hour one is not to learn functions.</b> It is to prove the loop works — that you can go from not knowing to having written something yourself, in sixty minutes, without AI. Once you have done that once, you have a repeatable unit and the remaining two months are just that unit pointed at different topics.</p>
+
+      <h2 class="sec">The daily loop — the only thing you have to maintain</h2>
+      <p>Do not try to maintain a two-month plan. Maintain <em>one shape of day</em>, and let the plan tell you which topic to point it at. The topic changes constantly. <b>The loop never changes.</b></p>
+      <div class="loop"><span class="t">10 min</span><span class="b">Blank page from memory, before anything opens.</span></div>
+      <div class="loop"><span class="t">40 min</span><span class="b">Learn, timeboxed, one source. AI may explain and quiz. AI may not author.</span></div>
+      <div class="loop"><span class="t">40 min</span><span class="b"><b>Rebuild from empty.</b> The step that does the actual work. Never skip it.</span></div>
+      <div class="loop"><span class="t">10 min</span><span class="b">Explain it in one paragraph, in English. This is your English track — not extra work.</span></div>
+      <div class="loop"><span class="t">2 min</span><span class="b">Tick it in the audit. Log anything AI wrote as a <span style="font-family:'Geist Mono',monospace">1</span>.</span></div>
+      <p>Roughly 100 minutes of real work. Everything else in a study day is support.</p>
+
+      <div class="floor"><b>Define your floor now, before you need it.</b> On the worst day — hospital, family crisis, no sleep — the minimum is <b>one 20-minute loop</b>: 5 minutes blank page, 10 learning, 5 rebuilding. That is a complete day. It counts.<br><br>You had no floor in module 8, so the floor became zero, and zero days are what compound into eleven-module gaps. A 20-minute day is not a broken streak. It is the streak.</div>
+
+      <h2 class="sec">Daily shape — and the part that is not negotiable</h2>
+      <p><b>Before the break (Aug 6–15):</b> about 4 focused hours a day. <b>During the break:</b> 6 focused hours, 6 days a week, one full day off. Not 12 hours. You are rebuilding from a fragile place, and a plan that burns you out in week one is worse than no plan at all.</p>
+      <ul>
+        <li><b>Morning block (post-Fajr, ~3h)</b> — hardest new concept of the day. This is your best brain; do not spend it on video.</li>
+        <li><b>Afternoon block (~2h)</b> — reconstruct from empty. Build the small thing. No tutorials.</li>
+        <li><b>Evening (~1h)</b> — spaced review of +2 day and +7 day items, then write the day's one-paragraph explanation.</li>
+        <li><b>Evenings after Isha belong to your wife.</b> Non-negotiable, not a reward for finishing.</li>
+      </ul>
+
+      <h2 class="sec">The one rule that changes everything</h2>
+      <div class="rule"><b>AI may explain, review, and quiz me. AI may not author.</b> The moment AI writes it, your brain marks the problem "solved" and files nothing. That is exactly how you arrived at Module 19 feeling empty.</div>
+      <div class="rule"><b>25 minutes cold, then help.</b> Every problem gets a genuine solo attempt on a timer before anything else opens.</div>
+      <div class="rule"><b>Blank page before every topic.</b> Write what you remember from memory first. Then study. Then rewrite. The gap between the two is the only thing that actually stuck.</div>
+      <div class="rule"><b>Reconstruct from empty.</b> Every topic ends with you building one small thing — 20 to 40 lines — from an empty file, no reference, no tab open.</div>
+      <div class="rule"><b>Revisit at +2 days and +7 days.</b> Ten minutes, blank page. This is what turns a week of study into knowledge you still own in November.</div>
+      <div class="rule"><b>If you do use AI to ship something, log it as a <span style="font-family:'Geist Mono',monospace">1</span> in the audit in the same sitting.</b> Not later, not next week — before you close the laptop. What damaged Modules 8–18 was not using AI. It was using AI and not writing it down, so the gap went silent and compounded for three months. A tracked debt is survivable. An invisible one is what put you here.</div>
+
+      <h2 class="sec">The two holes are one hole</h2>
+      <p>The audit says Modules 3–4 are a gap and <em>all</em> of Django is a gap. Those are not two problems. Django is not a new language stacked on Python — it is Python's class system with a database bolted on. Everything you flagged in Module 4 is something Django uses on every single page.</p>
+      <p>So do not study Python and then study Django. <b>Learn the Python in Django's vocabulary</b> and every hour counts twice:</p>
+      <table class="sp">
+        <tr><th>What you flagged in Modules 3–4</th><th>What it already is in Django</th></tr>
+        <tr><td>classes, <code>__init__</code>, attributes, methods</td><td>a model — <code>class Task(models.Model)</code></td></tr>
+        <tr><td>inheritance, overriding, <code>super()</code></td><td><code>models.Model</code>, <code>class Meta</code>, <code>AbstractUser</code>, class-based views</td></tr>
+        <tr><td><code>__str__</code>, <code>__repr__</code>, <code>__eq__</code></td><td>the <code>__str__</code> on every model — it is literally what the admin displays</td></tr>
+        <tr><td><code>@property</code>, encapsulation</td><td>computed fields — <code>@property def is_overdue(self)</code></td></tr>
+        <tr><td>decorators</td><td><code>@login_required</code>, <code>@admin.register</code>, <code>@receiver</code></td></tr>
+        <tr><td><code>*args</code> / <code>**kwargs</code></td><td><code>def get_context_data(self, **kwargs)</code>, URL params arriving in views</td></tr>
+        <tr><td>try/except, custom exceptions</td><td><code>Task.DoesNotExist</code>, <code>ValidationError</code>, <code>get_object_or_404</code></td></tr>
+        <tr><td>files and paths</td><td><code>FileField</code>, <code>ImageField</code>, <code>MEDIA_ROOT</code>, uploads</td></tr>
+        <tr><td>iterators, generators, laziness</td><td>QuerySets are lazy — they do not touch the database until you iterate</td></tr>
+      </table>
+
+      <h2 class="sec">The live course calendar</h2>
+      <table class="sp">
+        <tr><th>Dates</th><th>What is running</th></tr>
+        <tr><td class="d">done</td><td><b>Module 19</b> (Django To-Do). <b>Classes are finished</b> — only the quiz and assignment remain.</td></tr>
+        <tr><td class="d">Aug 6–8</td><td><b>No new module content. Three free days</b> — almost everything goes to recovery loops.</td></tr>
+        <tr><td class="d">Aug 9–15</td><td><b>Module 20</b> — "Building a Full Functional Blog Project from Scratch <em>with AI</em>". AI use here is the module's own stated method, so it is the curriculum, not a shortcut. Still log what AI writes as a <span style="font-family:'Geist Mono',monospace">1</span>.</td></tr>
+        <tr><td class="d">Aug 16–Sep 5</td><td><b>Module 21</b> — e-commerce, 2 weeks, 6 live classes. University break Aug 15 – Sep 2, so no term load. <b>From here you submit your own work.</b></td></tr>
+        <tr><td class="d">Sep 6 →</td><td>Module 22 (exam + deployment), 23 (DRF), 24 (LMS backend), 25 (React intro), 26 (hooks — the JavaScript wall)</td></tr>
+      </table>
+      <p><b>Every day has exactly two jobs:</b> the recovery loop, which gets your best hours, and whatever the live course needs, which gets the leftovers. Never the other order.</p>
+      <p><b>Realistic target:</b> L1–L13 and Build A done by Aug 15. L14–L20 and Build B during module 21's first week, alongside its classes. Do not pretend all of it lands before Aug 16 — it does not need to.</p>
+
+      <h2 class="sec">Phase 1 — L1 to L13 + Build A: Python, named for its Django payoff</h2>
+      <p>Every loop: blank page from memory → learn → rebuild from empty → explain it → log it. Never another order.</p>
+      <p><b>Progress is a loop number, not a date.</b> Say "I'm on L6". Miss a day and the number does not move. <b>A loop ends when you can rebuild the thing from an empty file</b> — not at a timer. Loops marked <b>⚠️</b> normally take two sittings; that is expected.</p>
+      <table class="sp">
+        <tr><th>Loop</th><th>Topics in it</th></tr>
+        <tr><td class="d">L1</td><td><code>def</code>, parameters vs arguments, <code>return</code>, returning two values, default parameters</td></tr>
+        <tr><td class="d">L2</td><td>Scope (local/global/enclosing), <code>*args</code>, <code>**kwargs</code>, the mutable-default trap</td></tr>
+        <tr><td class="d">L3</td><td>Functions as objects (passing and returning functions), <code>lambda</code></td></tr>
+        <tr><td class="d">L4 ⚠️</td><td><b>Decorators</b> — wrapping, <code>@</code> syntax. Then read Django's <code>@login_required</code> and see it is the same thing.</td></tr>
+        <tr><td class="d">L5</td><td>Classes: <code>class</code>, <code>__init__</code>, <code>self</code>, instance attributes, methods. <b>You are writing a model and do not know it yet.</b></td></tr>
+        <tr><td class="d">L6</td><td>Class vs instance attributes, <code>@staticmethod</code>, <code>@classmethod</code></td></tr>
+        <tr><td class="d">L7</td><td>Inheritance, method overriding, <code>super()</code></td></tr>
+        <tr><td class="d">L8</td><td>Polymorphism, abstract classes (<code>ABC</code>)</td></tr>
+        <tr><td class="d">L9</td><td>Dunders: <code>__str__</code>, <code>__repr__</code>, <code>__eq__</code>, <code>__len__</code></td></tr>
+        <tr><td class="d">L10</td><td><code>@property</code>, encapsulation</td></tr>
+        <tr><td class="d">L11</td><td>Files, paths, reading and writing JSON</td></tr>
+        <tr><td class="d">L12</td><td><code>try</code>/<code>except</code>/<code>else</code>/<code>finally</code>, <code>raise</code>, custom exception classes</td></tr>
+        <tr><td class="d">L13</td><td>Iterators, generators, <code>yield</code>, laziness — why QuerySets are lazy</td></tr>
+        <tr><td class="d">Build A</td><td><b>≈3 loops. Rebuild the OOP To-Do app from an empty folder.</b> <code>Task</code>, <code>TodoList</code>, <code>FileManager</code>, JSON persistence, real error handling. No AI, no old repo, no tutorial. No blank page — the whole thing is the rebuild step.</td></tr>
+      </table>
+      <p><b>Deliberately cut from module 4: design patterns</b> (Singleton, Factory, Builder). Django does not need them and they land far better once you have felt the problem they solve. If anything suggests them, say no.</p>
+
+      <h2 class="sec">Phase 2 — L14 to L20 + Build B: the bridge into Django</h2>
+      <p>Now build the same app again, in Django. Same domain, so every ounce of attention goes to <em>what Django adds</em> rather than to the problem itself.</p>
+      <p><b>And look at what Module 19 actually is: "Django To-Do App Project."</b> Your backfill deliverable and your course assignment are the same artifact. You are not choosing between catching up and keeping up.</p>
+      <table class="sp">
+        <tr><th>Loop</th><th>Topics in it</th></tr>
+        <tr><td class="d">L14</td><td><code>startproject</code>, <code>startapp</code>, settings, and how a request actually flows through Django</td></tr>
+        <tr><td class="d">L15</td><td>Models, <code>makemigrations</code>, <code>migrate</code>, register in admin. <b>Seeing your own class appear in the Django admin is the moment Django stops being magic.</b></td></tr>
+        <tr><td class="d">L16</td><td>Views and URLs — the request → URL → view → response path</td></tr>
+        <tr><td class="d">L17</td><td>Templates and context</td></tr>
+        <tr><td class="d">L18–19 ⚠️</td><td>Forms, <code>ModelForm</code>, validation</td></tr>
+        <tr><td class="d">L20</td><td>CRUD wiring — create, update, delete</td></tr>
+        <tr><td class="d">Build B</td><td><b>≈3 loops. The same To-Do app, in Django.</b> Push it. <em>Then</em> let AI review it — "what would a senior change?" Git habits in the same sitting (~3h clears 11 items).</td></tr>
+      </table>
+      <p>Spilling into module 21 is fine — it runs three weeks and its first days are setup and classes. The bridge work <em>is</em> Django practice either way, so never rush a loop to hit a date.</p>
+
+      <h2 class="sec">Phase 3 — Aug 16 to Sep 5: module 21 <em>is</em> your Django course</h2>
+      <p><b>Module 21 runs Aug 16 – Sep 5 with 6 classes, and the university break is Aug 15 – Sep 2.</b> One module, three weeks, no university load. That is not a collision — it is the single best container you will ever get for learning Django, because the e-commerce project <em>needs</em> exactly the Django you are missing.</p>
+      <p><b>So module 21 is not homework competing with your recovery. Module 21 is the curriculum.</b> Learn each thing the moment the project demands it:</p>
+      <table class="sp">
+        <tr><th>What the project needs</th><th>What you are actually learning</th></tr>
+        <tr><td>products, categories, orders</td><td>ForeignKey, ManyToMany, <code>related_name</code>, migrations on real relationships</td></tr>
+        <tr><td>product listing and filtering</td><td><code>filter</code>/<code>exclude</code>/<code>annotate</code>/<code>select_related</code>, and the N+1 problem</td></tr>
+        <tr><td>the cart</td><td>sessions, request lifecycle, state that is not in the database</td></tr>
+        <tr><td>checkout and "my orders"</td><td>auth, <code>login_required</code>, tying rows to a user</td></tr>
+        <tr><td>any page that feels slow</td><td>print <code>queryset.query</code>, read the SQL Django wrote, learn joins and indexes from your own output</td></tr>
+      </table>
+      <p>That last row is how SQL gets paid off almost for free. You are not studying SQL as a subject; you are reading the queries your own code generates and asking why they look like that.</p>
+      <p>The remaining Django loops land here, driven by what the project needs:</p>
+      <table class="sp">
+        <tr><th>Loop</th><th>Topics in it</th></tr>
+        <tr><td class="d">L21–22 ⚠️</td><td><b>ForeignKey, ManyToMany, <code>related_name</code></b> — the most important Django loops you will do. Products, categories, orders.</td></tr>
+        <tr><td class="d">L23–24 ⚠️</td><td>ORM queries: <code>filter</code>, <code>exclude</code>, <code>get</code>, <code>order_by</code>, <code>annotate</code>, <code>select_related</code></td></tr>
+        <tr><td class="d">L25–26 ⚠️</td><td>Auth: login, logout, signup, <code>login_required</code>, <code>request.user</code> — needed for checkout and "my orders"</td></tr>
+        <tr><td class="d">L27</td><td>Class-based views</td></tr>
+      </table>
+      <table class="sp">
+        <tr><th>Dates</th><th>Focus</th></tr>
+        <tr><td class="d">Aug 16–22</td><td>Models and relationships for the real schema (L21–22). Products and categories listing in a browser. Attend classes 1–2.</td></tr>
+        <tr><td class="d">Aug 23–29</td><td>Cart with sessions, auth (L25–26), forms. Attend classes 3–4. Start reading the SQL your queries emit.</td></tr>
+        <tr><td class="d">Aug 30–Sep 5</td><td>Checkout, order history, deploy it. Attend classes 5–6. <b>Submit your own work.</b></td></tr>
+        <tr><td class="d">Sep 6 →</td><td>SQL mop-up, then JavaScript — React does not land until module 25.</td></tr>
+      </table>
+
+      <h2 class="sec">Phase 4 — Sep 6 to Oct 3: SQL, JavaScript, CSS</h2>
+      <p>These three are scheduled by <b>when they are actually needed</b>, not by when they appeared on the calendar. Working out the real deadline for each is what makes the load survivable.</p>
+      <table class="sp">
+        <tr><th>Track</th><th>Needed by</th><th>Because</th></tr>
+        <tr><td><b>SQL / databases</b></td><td class="d">Sep 12</td><td>Already being paid off inside module 21. Print <code>queryset.query</code>, read the SQL Django wrote, and learn joins, indexes and N+1 from your own output. A ~12h mop-up Sep 6–12 finishes it.</td></tr>
+        <tr><td><b>JavaScript</b></td><td class="d">Oct 3</td><td>The real wall is <b>module 26 — hooks and state</b>, not module 25. Module 25 is JSX, components and props, which survives moderate JavaScript. Hooks and async data fetching do not.</td></tr>
+        <tr><td><b>HTML / CSS</b></td><td class="d">Sep 26</td><td>Partly absorbed already through Django templates in module 21. Only four things in CSS are conceptual; the rest is lookup, forever, for everyone.</td></tr>
+      </table>
+
+      <table class="sp">
+        <tr><th>Loop</th><th>Topics in it</th></tr>
+        <tr><td class="d">L28</td><td>SQL: <code>SELECT</code>, <code>WHERE</code>, <code>ORDER BY</code>, <code>LIMIT</code></td></tr>
+        <tr><td class="d">L29 ⚠️</td><td><b>JOINs</b></td></tr>
+        <tr><td class="d">L30</td><td><code>GROUP BY</code>, aggregates, <code>HAVING</code></td></tr>
+        <tr><td class="d">L31</td><td>Keys, indexes, <code>EXPLAIN</code>, the N+1 problem</td></tr>
+        <tr><td class="d">L32</td><td>Normalization — 1NF, 2NF, 3NF</td></tr>
+        <tr><td class="d">L33</td><td>JS: <code>let</code>/<code>const</code>, scope, arrow functions, template literals</td></tr>
+        <tr><td class="d">L34–35 ⚠️</td><td><b>Array methods: <code>map</code>, <code>filter</code>, <code>reduce</code>, <code>find</code></b> — <code>map</code> alone is most of what you write in React</td></tr>
+        <tr><td class="d">L36</td><td>Objects, destructuring, spread, <code>import</code>/<code>export</code> — this is how props work</td></tr>
+        <tr><td class="d">L37–38 ⚠️</td><td><b>Promises, <code>async</code>/<code>await</code>, try/catch</b> — how every React app talks to your DRF API</td></tr>
+        <tr><td class="d">L39</td><td><code>fetch</code> and error handling</td></tr>
+        <tr><td class="d">L40</td><td>Just enough DOM and events to see what React does <em>for</em> you</td></tr>
+        <tr><td class="d">L41</td><td>CSS: the box model</td></tr>
+        <tr><td class="d">L42</td><td>Flexbox — Flexbox Froggy <em>is</em> the rebuild step</td></tr>
+        <tr><td class="d">L43</td><td>Grid — Grid Garden <em>is</em> the rebuild step</td></tr>
+        <tr><td class="d">L44</td><td>Media queries, responsive</td></tr>
+      </table>
+      <p><b>JavaScript — deliberately skipped:</b> JavaScript classes (React is hooks now), prototypes, generators, deep closure theory, TypeScript. None of it blocks you before 2027, and chasing it is how the JavaScript track quietly turns into another three months.</p>
+      <p><b>CSS is only four conceptual things</b> — L41 to L44. Those are layout <em>models</em>, so they must be understood. Every other CSS property is reference material you look up until you stop needing to; nobody memorises <code>justify-content</code>. Budget one weekend, not a sprint, and stop feeling guilty about the rest.</p>
+
+      <h2 class="sec">The whole thing on one page</h2>
+      <table class="sp">
+        <tr><th>Dates</th><th>Backfill</th><th>Live course</th></tr>
+        <tr><td class="d">Aug 6–8</td><td>L1–L6 — three free days, ~2 loops/day</td><td>Module 19 quiz + assignment only</td></tr>
+        <tr><td class="d">Aug 9–15</td><td>L7–L13 + Build A</td><td>Module 20 blog — <b>last</b> AI-assisted submission</td></tr>
+        <tr><td class="d">Aug 16–Sep 5</td><td>Django (via the project itself) + SQL by reading your own queries</td><td><b>Module 21 e-commerce — your own work from here on</b></td></tr>
+        <tr><td class="d">Sep 6–12</td><td>SQL mop-up (~12h)</td><td>Module 22 — exam + deployment</td></tr>
+        <tr><td class="d">Sep 13–26</td><td>JavaScript core + the CSS weekend</td><td>Modules 23–24 — DRF, LMS backend</td></tr>
+        <tr><td class="d">Sep 27–Oct 3</td><td>JavaScript finish (async, fetch)</td><td>Module 25 — React intro</td></tr>
+        <tr><td class="d">Oct 4 →</td><td><b>Debt cleared. Normal plan resumes.</b> DSA restarts as 2–3 problems a week.</td><td>Module 26 onward at full depth</td></tr>
+      </table>
+      <p>Two months. Then you are a student who is caught up, not a student who is behind — and comfortably before module 28, where the job launch begins.</p>
+      <p><b>One assumption to check:</b> this assumes modules 22 onward run about a week each, the way everything before module 21 did. If any of them are double-length like module 21, tell me and the September dates shift — in your favour, not against.</p>
+
+      <h2 class="sec">The Friday checkpoint — 30 minutes, non-negotiable</h2>
+      <p><b>Modules 8–18 did not fail because the plan was wrong. They failed because nothing ever forced the drift to become visible.</b> By the time you felt it, it was three months deep. This is the fix, and it is thirty minutes a week:</p>
+      <ol>
+        <li>Open the audit. Tick what you cleared. <b>Log anything AI wrote as a <span style="font-family:'Geist Mono',monospace">1</span></b> — that is the whole safety mechanism.</li>
+        <li>Look at the deadline chips on each track. Am I on pace for the next one, honestly?</li>
+        <li>If behind: pick <em>one</em> thing to cut, using the sacrifice order below. Cut it deliberately, write it down, do not just hope.</li>
+        <li>Three sentences: what I learned, what is still fuzzy, what I am doing next week.</li>
+      </ol>
+      <p>Thirty minutes. That is the entire governance layer. Skip it for two weeks in a row and you are back in the situation that put you here — not because you stopped working, but because you stopped being able to see.</p>
+
+      <h2 class="sec">Track three numbers. Ignore the rest.</h2>
+      <ul>
+        <li><b>Did I do a loop today?</b> Yes or no. Even the 20-minute floor counts as yes.</li>
+        <li><b>Concept debt count.</b> One number, from the audit. It should fall every single week.</li>
+        <li><b>Did I submit my own work?</b> From Aug 16 onward this is yes or no, and nothing else.</li>
+      </ul>
+      <p>LeetCode totals, commit streaks, article counts, applications sent — all real, all later. Tracking them now just gives you more ways to feel behind.</p>
+
+      <h2 class="sec">Early warning signs — catch the slide at week one</h2>
+      <p>These are the specific behaviours that preceded the last collapse. Two of them in one week is a signal, not a character flaw:</p>
+      <ul class="warn-list">
+        <li>You skip the blank page because <em>"I already know this one."</em> You do not — that is what the blank page is for.</li>
+        <li><b>You skip the rebuild-from-empty because time is short.</b> This is the dangerous one. It is the only step that actually builds anything, and cutting it does not feel like cutting anything.</li>
+        <li>You watch a class recording instead of building something. Comfort disguised as diligence.</li>
+        <li>You open AI before the 25 minutes are up.</li>
+        <li><b>You reorganise the tracker instead of studying.</b> Tidying the system feels like progress and produces nothing. Watch for this one especially — the system is finished now.</li>
+      </ul>
+      <p>The response to a warning sign is never to quit the day. It is to <b>shrink the day to the floor</b> and keep the chain intact.</p>
+
+      <h2 class="sec">When life happens: what to cut, in order</h2>
+      <p>You are now scheduled continuously from Aug 6 to Oct 3, and your wife's family situation is still unresolved. Something will go wrong, because something always does. So decide the sacrifice order <em>now</em>, while you are calm, instead of at midnight while you are not:</p>
+      <ol class="steps" style="margin-left:18px">
+        <li><b>Cut first:</b> CSS depth. Learn it on demand and accept ugly.</li>
+        <li><b>Then:</b> LeetCode and DSA. Already parked; keep them parked longer.</li>
+        <li><b>Then:</b> project polish — READMEs, deployment, styling. Working and ugly beats unfinished and pretty.</li>
+        <li><b>Then:</b> module project <em>scope</em>. Build three honest pages instead of ten.</li>
+        <li><b>Last resort:</b> slip the JavaScript deadline into module 26 and take one rough React module.</li>
+      </ol>
+      <p><b>Never cut these, in any circumstance:</b> sleep, the evenings that belong to your wife, or the reconstruct-from-empty step. The first two break you. The third quietly turns studying back into watching, which is the exact failure that cost you modules 8–18 — and it is the one that hides, because it still feels like work.</p>
+
+      <h2 class="sec">How long do you keep using AI? Until Aug 16.</h2>
+      <p>A real answer, not a comforting one: <b>module 20 is the last assignment you lean on AI for.</b> From module 21 onward — Aug 16 — you write what you submit.</p>
+      <p>That is credible because of the sequence, not because of willpower. Aug 6–15 gives you Python's class system and a Django CRUD app you built yourself. A cart and a product list are the same skills with one more relationship. By Aug 16 you will not need the crutch for the thing in front of you.</p>
+      <p><b>For module 20 this week, use AI like this instead of the way you have been:</b></p>
+      <ul>
+        <li>Read the assignment and write, in plain words, what you think the solution needs. Ten minutes, before AI sees it.</li>
+        <li>Let AI produce it.</li>
+        <li>Then spend twenty minutes making it yours: for every line you do not understand, ask <em>"explain this line, why is it needed, what breaks without it?"</em> — never "write me the next part".</li>
+        <li>Break it on purpose. Delete a line, read the error, put it back yourself. Errors are the cheapest teacher you have.</li>
+        <li><b>Log every concept you could not have written as a <span style="font-family:'Geist Mono',monospace">1</span> in the audit, in the same sitting.</b></li>
+        <li>Three sentences in the README: what it does, why it is built this way, what you still do not understand.</li>
+      </ul>
+      <p>That turns a submission worth nothing into one worth maybe forty percent — and, more importantly, it leaves a visible debt instead of a silent one.</p>
+      <p>Do not expect module 21 to be pretty. Attend all six classes; the exposure is worth real money even when you follow half of it. Then build the <em>smallest honest slice</em> yourself. An ugly three-page shop you can explain line by line beats a complete storefront you cannot — the first is a portfolio piece and an interview story, the second is a liability any competent interviewer strips in twenty minutes.</p>
+
+      <h2 class="sec">Parked on purpose — do not touch these yet</h2>
+      <p>Deciding what to <em>abandon</em> is the whole skill here. These are deliberately parked, not forgotten:</p>
+      <table class="sp">
+        <tr><th>Item</th><th>Why it waits</th></tr>
+        <tr><td><b>All unwatched DSA recordings</b> (modules 11–19)</td><td>DSA is interview preparation, and your interviews are 2027. It is not a prerequisite for Django, DRF, React or AI work — not one line of it. It is also the most seductive thing on your list, because it feels like real computer science and it is measurable. Resume it in September as 2–3 problems a week, and solve problems rather than watch lectures. The recordings will still exist in October.</td></tr>
+        <tr><td><b>The module 18 recording</b> (Django auth, advanced queries)</td><td>On the critical path, but useless to you right now — you would understand none of it. You will learn auth and queries properly during module 21, and by then this recording is optional revision.</td></tr>
+        <tr><td><b>Recordings of anything you missed</b></td><td>Attend classes <em>live</em>, never chase recordings. Live costs the hour once and keeps you with the cohort; recordings are a debt that compounds while you sleep. If you miss one, it is gone — accept that and move on.</td></tr>
+        <tr><td><b>Module 19 class 2, running now</b></td><td>Your instinct to not follow along was correct and it was good judgement, not avoidance. Sit in it, keep a running list of words you do not recognise yet, and do not try to code along. You will build this exact app yourself on Aug 12–14.</td></tr>
+        <tr><td><b>LeetCode, HTML/CSS polish, TypeScript</b></td><td>None of it blocks anything before October.</td></tr>
+      </table>
+
+      <h2 class="sec">Why this makes you an engineer, not a coder</h2>
+      <p>Writing code from a clear spec is the part AI genuinely took. That was the old entry-level job and it is not coming back. What went <em>up</em> in value is everything around it: deciding what to build, decomposing a vague problem, spotting the subtly wrong answer, knowing what breaks at 10x load.</p>
+      <p><b>You cannot review what you cannot read.</b> That is the whole argument. The person who can only prompt is the person who gets replaced; the person who can verify is the one who gets paid. Your instinct to learn this properly is not idealism — it is the employability strategy.</p>
+      <p>So from now on, every project gets three sentences written in its README:</p>
+      <ul>
+        <li>Why did I choose this design over the obvious alternative?</li>
+        <li>What breaks first if traffic goes up 10x?</li>
+        <li>What would I do differently with another week?</li>
+      </ul>
+      <p>Three sentences. No extra study hours. That is the judgment muscle that separates the two job titles, and it is also the exact material interviews are made of.</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="weeks.js"></script>
+<script src="sync.js"></script>
+<script>
+var WEEKS = window.WEEKS;
+
+function load(k,d){ try{ var v=JSON.parse(localStorage.getItem(k)); return v===null?d:v; }catch(e){ return d; } }
+function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); flash(); if(window.CloudSync) window.CloudSync.push(); }
+var flashT;
+function flash(){ var m=document.getElementById('savedMsg'); if(!m)return; m.textContent='Saved '+new Date().toLocaleTimeString()+' ✓'; clearTimeout(flashT); flashT=setTimeout(function(){ m.textContent='Auto-saved in this browser ✓'; },1800); }
+
+var SCORE = load('rc_score', {});   // taskId -> 0|1|2|3
+var CLEAR = load('rc_done', {});    // taskId -> 1  (debt item worked off)
+var THRU  = load('rc_thru', 21);
+var mode  = 'core';
+var qmode = 'core';
+var view  = 'audit';
+
+var CATW = { course:0.32, extra:0.18, leet:0.12, project:0.25, git:0.05, eng:0.08 };
+var CATL = { course:'Course / core', project:'Project', extra:'Self-study', leet:'LeetCode / DSA', git:'Git / GitHub', eng:'English' };
+var CORE = ['course','project'];
+var ALL  = ['course','project','extra','leet','git','eng'];
+
+/* Not all debt is the same kind of debt, and conflating them is exactly what
+   makes the total feel hopeless. An unwatched YouTube video is not a missing
+   skill. Tiering them keeps the headline number honest. */
+var TIER  = { course:'concept', project:'concept', git:'habit', eng:'habit', leet:'practice', extra:'resource' };
+var TIERS = ['concept','habit','practice','resource'];
+var TIERMETA = {
+  concept:  { label:'Concept debt',
+              note:'Genuine gaps in understanding. These block everything downstream. Counted in full.' },
+  habit:    { label:'Habit debt',
+              note:'Learned once by doing, then simply practised — branching, .env, commit messages, explaining out loud. Counted at a quarter.' },
+  practice: { label:'Practice debt',
+              note:'Interview preparation. A steady drip from now until 2027, not a backfill sprint. Not counted as recovery hours.' },
+  resource: { label:'Unused resources',
+              note:'Videos and articles you never opened. These are means, not skills — if you have the concept, the item is void. Not counted.' }
+};
+// concept gaps cost real relearning time; habits cost a fraction; the rest cost none.
+var HFACTOR = { concept:{0:0.75,1:0.45}, habit:{0:0.25,1:0.15}, practice:{0:0,1:0}, resource:{0:0,1:0} };
+
+// Dependency order — what unblocks what, not what came first on the calendar.
+var TRACKS = [
+  { key:'python',  name:'Python & OOP',     weeks:[1,2,3,4,5,6], due:'Aug 14',
+    why:'Load-bearing. Django models are just OOP wearing a hat — a gap here silently becomes a Django gap. Clearing now: L1–L13 then Build A.' },
+  { key:'django',  name:'Django',           weeks:[16,17,18], due:'Sep 5',
+    why:'Your front line. Modules 19–24 are all Django, so this debt is charged interest daily. Cleared by building module 21 yourself.' },
+  { key:'sql',     name:'Databases & SQL',  weeks:[7,8,9], due:'Sep 12',
+    why:'Mostly paid off inside module 21 by reading the SQL your own ORM queries emit. Short mop-up after, Sep 6–12.' },
+  { key:'js',      name:'JavaScript',       weeks:[13,14,15], due:'Oct 3',
+    why:'Hard deadline: module 26 (hooks and state), not module 25. Sep 6 – Oct 3. Only the React-critical subset — see the Sprint tab.' },
+  { key:'web',     name:'HTML & CSS',       weeks:[10,11,12], due:'Sep 26',
+    why:'Four conceptual things only: box model, flexbox, grid, media queries. The rest of CSS is lookup forever. One weekend, not a sprint.' },
+  { key:'current', name:'Live modules (19–21)', weeks:[19,20,21], due:'ongoing',
+    why:'The modules happening now. Score these honestly too — module 19 clears when you build the Django To-Do on Aug 12–14, and module 20 is superseded by module 21 rather than rebuilt. Do not add new silent debt while clearing old debt.' }
+];
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function weekByN(n){ for(var i=0;i<WEEKS.length;i++){ if(WEEKS[i].n===n) return WEEKS[i]; } return null; }
+function tid(n,cat,i){ return n+'_'+cat+'_'+i; }
+function cats(){ return mode==='core' ? CORE : ALL; }
+
+function taskHours(w,cat){
+  var arr=(w.cats[cat]||[]); if(!arr.length) return 0;
+  var tot=0; ALL.forEach(function(c){ if((w.cats[c]||[]).length) tot+=CATW[c]; });
+  if(!tot) return 0;
+  return (w.hrs * (CATW[cat]/tot)) / arr.length;
+}
+// Relearning is faster than first learning: a "1" already has recognition to build on.
+function debtHours(w,cat,sc){ return taskHours(w,cat) * HFACTOR[TIER[cat]][sc]; }
+
+function trackWeeks(t){ return t.weeks.filter(function(n){ return n<=THRU; }); }
+
+function emptyTier(){ var o={}; TIERS.forEach(function(k){ o[k]=0; }); return o; }
+
+function scan(t){
+  var o={ total:0, scored:0, debt:0, hours:0, sum:0, items:[], tier:emptyTier() };
+  trackWeeks(t).forEach(function(n){
+    var w=weekByN(n); if(!w) return;
+    cats().forEach(function(cat){
+      (w.cats[cat]||[]).forEach(function(txt,i){
+        var id=tid(n,cat,i); o.total++;
+        var sc=SCORE[id];
+        if(sc===undefined) return;
+        o.scored++; o.sum+=sc;
+        if(sc<=1){
+          o.debt++; o.tier[TIER[cat]]++;
+          if(!CLEAR[id]){
+            var h=debtHours(w,cat,sc); o.hours+=h;
+            o.items.push({ id:id, n:n, cat:cat, tier:TIER[cat], txt:txt, sc:sc, h:h });
+          }
+        }
+      });
+    });
+  });
+  return o;
+}
+
+function totals(){
+  var g={ total:0, scored:0, debt:0, hours:0, sum:0, open:0, tier:emptyTier() };
+  TRACKS.forEach(function(t){
+    var s=scan(t);
+    g.total+=s.total; g.scored+=s.scored; g.debt+=s.debt; g.hours+=s.hours; g.sum+=s.sum; g.open+=s.items.length;
+    TIERS.forEach(function(k){ g.tier[k]+=s.tier[k]; });
+  });
+  return g;
+}
+
+// ---------- audit view ----------
+function renderAudit(){
+  var body=document.getElementById('auditBody'), html='';
+  TRACKS.forEach(function(t,ti){
+    var s=scan(t);
+    var wl=trackWeeks(t);
+    if(!wl.length) return;
+    var badge = s.scored===0
+      ? '<span class="badge todo">not scored</span>'
+      : (s.debt>0
+          ? '<span class="badge debt">'+s.debt+' gap'+(s.debt===1?'':'s')+' · '+Math.round(s.hours)+'h</span>'
+          : '<span class="badge clear">solid ✓</span>');
+    html+='<div class="trk" data-trk="'+t.key+'">'
+      + '<div class="trk-h" data-toggle="'+t.key+'">'
+      +   '<span class="ord">'+(ti+1)+'</span>'
+      +   '<span class="nm">'+esc(t.name)+'</span>'
+      +   '<span class="wk">M'+wl[0]+'–'+wl[wl.length-1]+' · '+s.scored+'/'+s.total+'</span>'
+      +   '<span class="due">by '+t.due+'</span>'
+      +   badge
+      + '</div>'
+      + '<div class="trk-why">'+esc(t.why)+'</div>'
+      + '<div class="trk-b">';
+    wl.forEach(function(n){
+      var w=weekByN(n); if(!w) return;
+      html+='<div class="wkh">Module '+n+'</div><div class="wkt">'+esc(w.title)+'</div>';
+      cats().forEach(function(cat){
+        var arr=w.cats[cat]||[]; if(!arr.length) return;
+        html+='<div class="cath">'+CATL[cat]+'</div>';
+        arr.forEach(function(txt,i){
+          var id=tid(n,cat,i), sc=SCORE[id];
+          html+='<div class="task"><div class="txt">'+esc(txt)+'</div><div class="seg" data-id="'+id+'">';
+          [[0,'0 · never'],[1,'1 · AI did it'],[2,'2 · with docs'],[3,'3 · cold']].forEach(function(p){
+            html+='<button data-v="'+p[0]+'" class="'+(sc===p[0]?'sel':'')+'">'+p[1]+'</button>';
+          });
+          html+='</div></div>';
+        });
+      });
+    });
+    html+='</div></div>';
+  });
+  body.innerHTML=html;
+
+  var g=totals();
+  document.getElementById('sConcept').textContent=g.tier.concept;
+  document.getElementById('sHabit').textContent=g.tier.habit;
+  document.getElementById('sHours').textContent=Math.round(g.hours)+'h';
+  document.getElementById('sMast').textContent = g.scored? (g.sum/g.scored).toFixed(1) : '—';
+
+  var tb='<div class="lab" style="display:flex;justify-content:space-between;font-size:11px;color:#5b6770;font-weight:600;margin-bottom:9px"><span>How the '+g.debt+' flagged item'+(g.debt===1?'':'s')+' break down</span><span>'+Math.round(g.hours)+'h counted</span></div>';
+  TIERS.forEach(function(k){
+    tb+='<div class="tierrow"><span class="tchip '+k+'">'+g.tier[k]+'</span>'
+      + '<span class="tname">'+TIERMETA[k].label+'</span>'
+      + '<span class="tnote">'+TIERMETA[k].note+'</span></div>';
+  });
+  document.getElementById('tierBox').innerHTML=tb;
+  var pct = g.total? Math.round(g.scored/g.total*100) : 0;
+  document.getElementById('pAudit').style.width=pct+'%';
+  document.getElementById('pAuditTxt').textContent=pct+'%';
+  document.getElementById('cScored').textContent=g.total-g.scored;
+  document.getElementById('cDebt').textContent=g.open;
+}
+
+// ---------- queue view ----------
+function renderQueue(){
+  var g=totals();
+  var cap=document.getElementById('capBox');
+  if(g.scored===0){
+    cap.innerHTML='<div class="cap warn">Nothing scored yet. Open the <b>Audit</b> tab and start with <b>Python &amp; OOP</b> — about 30 items, roughly half an hour. You will almost certainly find it is mostly 2s and 3s, and that alone will calm you down.</div>';
+  } else {
+    var PRE=40;                         // Aug 6-15, university load light, ~4h/day
+    var BREAK=90;                       // Aug 15 - Sep 2, no university, ~6h/day x 6 days
+    var RUNWAY=PRE+BREAK;
+    var h=Math.round(g.hours);
+    if(h<=PRE){
+      cap.innerHTML='<div class="cap">Counted debt: <b>~'+h+' focused hours</b>. You have roughly <b>'+PRE+'h</b> before the university term ends on Aug 14, and another <b>'+BREAK+'h</b> during module 21 (Aug 16 – Sep 5, no university load).<br><br><b>You can clear this before module 21 even starts.</b></div>';
+    } else if(h<=RUNWAY){
+      cap.innerHTML='<div class="cap">Counted debt: <b>~'+h+' focused hours</b>. Runway to Sep 5: <b>~'+PRE+'h</b> now (Aug 6–15, university light) plus <b>~'+BREAK+'h</b> across module 21 (Aug 16 – Sep 5, no university load) = <b>~'+RUNWAY+'h</b>.<br><br><b>The runway is bigger than the debt</b> — and module 21 is not competing for those hours, because the e-commerce project <em>is</em> the Django practice. That is arithmetic from your own numbers, not encouragement.</div>';
+    } else {
+      var after=h-RUNWAY;
+      cap.innerHTML='<div class="cap warn">Counted debt: <b>~'+h+' focused hours</b>. Runway to Sep 5 is <b>~'+RUNWAY+'h</b> ('+PRE+'h now + '+BREAK+'h across module 21), leaving <b>~'+after+'h</b> — about <b>'+Math.ceil(after/12)+' more week'+(Math.ceil(after/12)===1?'':'s')+'</b> at 12h/week after that.<br><br>That still lands you clear before module 28, where the job launch starts. Clear the tracks in order and do not skip ahead.</div>';
+    }
+  }
+
+  var body=document.getElementById('queueBody'), html='';
+  var any=false;
+  TRACKS.forEach(function(t,ti){
+    var s=scan(t);
+    var items = qmode==='core'
+      ? s.items.filter(function(it){ return it.tier==='concept' || it.tier==='habit'; })
+      : s.items;
+    if(!items.length) return;
+    any=true;
+    items.sort(function(a,b){
+      var ta=TIERS.indexOf(a.tier), tb2=TIERS.indexOf(b.tier);
+      if(ta!==tb2) return ta-tb2;                       // concept first, resources last
+      if(a.n!==b.n) return a.n-b.n;
+      if(a.sc!==b.sc) return a.sc-b.sc;
+      return CORE.indexOf(b.cat)-CORE.indexOf(a.cat);
+    });
+    var hrs=items.reduce(function(x,it){ return x+it.h; },0);
+    html+='<div class="qsec"><h3><span class="ord">'+(ti+1)+'</span>'+esc(t.name)
+        + '<span class="due">by '+t.due+'</span>'
+        + '<span class="hh">'+items.length+' item'+(items.length===1?'':'s')+' · ~'+Math.round(hrs)+'h</span></h3>'
+        + '<div class="sub">'+esc(t.why)+'</div>';
+    items.forEach(function(it){
+      html+='<label class="q"><input type="checkbox" data-clear="'+it.id+'">'
+          + '<span class="wn">M'+it.n+'</span>'
+          + '<span class="tag tier '+it.tier+'">'+it.tier+'</span>'
+          + '<span class="tag n'+it.sc+'">'+(it.sc===0?'never':'AI did it')+'</span>'
+          + '<span class="t">'+esc(it.txt)+'</span></label>';
+    });
+    html+='</div>';
+  });
+  if(!any && g.scored>0){
+    html='<div class="empty">Nothing in the queue at this filter. Either you have not scored enough yet, or <b>you have cleared every concept and habit gap you flagged</b> — in which case stop auditing and go build the integration project.</div>';
+  }
+  if(!any && g.scored===0){ html='<div class="empty">Score some items first and your prioritised queue will build itself here.</div>'; }
+  body.innerHTML=html;
+}
+
+function renderAll(){ renderAudit(); renderQueue(); }
+
+// ---------- events ----------
+document.getElementById('auditBody').addEventListener('click', function(e){
+  var h=e.target.closest('.trk-h');
+  if(h){ h.parentNode.classList.toggle('open'); return; }
+  var b=e.target.closest('.seg button');
+  if(b){
+    var id=b.parentNode.getAttribute('data-id'), v=parseInt(b.getAttribute('data-v'),10);
+    if(SCORE[id]===v){ delete SCORE[id]; } else { SCORE[id]=v; }
+    save('rc_score',SCORE);
+    var open=[];
+    document.querySelectorAll('.trk.open').forEach(function(t){ open.push(t.getAttribute('data-trk')); });
+    renderAll();
+    open.forEach(function(k){ var el=document.querySelector('.trk[data-trk="'+k+'"]'); if(el) el.classList.add('open'); });
+  }
+});
+
+document.getElementById('queueBody').addEventListener('change', function(e){
+  var cb=e.target.closest('input[data-clear]');
+  if(!cb) return;
+  var id=cb.getAttribute('data-clear');
+  if(cb.checked){ CLEAR[id]=1; } else { delete CLEAR[id]; }
+  save('rc_done',CLEAR);
+  renderAll();
+});
+
+document.querySelectorAll('.tb').forEach(function(btn){
+  btn.onclick=function(){
+    view=btn.getAttribute('data-v');
+    document.querySelectorAll('.tb').forEach(function(b){ b.classList.toggle('active', b===btn); });
+    ['audit','queue','sprint'].forEach(function(v){
+      document.getElementById('view-'+v).classList.toggle('hidden', v!==view);
+    });
+  };
+});
+
+document.getElementById('btnCore').onclick=function(){ mode='core'; this.classList.add('on'); document.getElementById('btnAll').classList.remove('on'); renderAll(); };
+document.getElementById('btnAll').onclick=function(){ mode='all'; this.classList.add('on'); document.getElementById('btnCore').classList.remove('on'); renderAll(); };
+document.getElementById('btnQCore').onclick=function(){ qmode='core'; this.classList.add('on'); document.getElementById('btnQAll').classList.remove('on'); renderQueue(); };
+document.getElementById('btnQAll').onclick=function(){ qmode='all'; this.classList.add('on'); document.getElementById('btnQCore').classList.remove('on'); renderQueue(); };
+
+document.getElementById('btnExpand').onclick=function(){
+  var els=document.querySelectorAll('.trk');
+  var anyClosed=false; els.forEach(function(t){ if(!t.classList.contains('open')) anyClosed=true; });
+  els.forEach(function(t){ t.classList.toggle('open', anyClosed); });
+};
+
+document.getElementById('btnCopy').onclick=function(){
+  var g=totals();
+  var lines=['RECOVERY AUDIT — modules 1-'+THRU,
+             'scored '+g.scored+'/'+g.total+' · flagged '+g.debt+' items · ~'+Math.round(g.hours)+'h counted',
+             'concept '+g.tier.concept+' · habit '+g.tier.habit+' · practice '+g.tier.practice+' · unused-resources '+g.tier.resource,
+             ''];
+  TRACKS.forEach(function(t){
+    var s=scan(t); if(!trackWeeks(t).length) return;
+    lines.push('## '+t.name+' — scored '+s.scored+'/'+s.total+', flagged '+s.debt
+             + ' (concept '+s.tier.concept+', habit '+s.tier.habit+'), ~'+Math.round(s.hours)+'h');
+    s.items.slice().sort(function(a,b){ return TIERS.indexOf(a.tier)-TIERS.indexOf(b.tier) || a.n-b.n; })
+      .forEach(function(it){ lines.push('  ['+it.tier+'/'+(it.sc===0?'never':'AI-did-it')+'] W'+it.n+' ('+it.cat+') '+it.txt); });
+    lines.push('');
+  });
+  var txt=lines.join('\n');
+  function done(){ var b=document.getElementById('btnCopy'); b.textContent='✓ Copied — paste it to Kiro'; setTimeout(function(){ b.textContent='📋 Copy summary'; },2600); }
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done, function(){ alert(txt); }); }
+  else { alert(txt); }
+};
+
+// ---------- init ----------
+(function init(){
+  var sel=document.getElementById('thruSel');
+  for(var i=6;i<=40;i++){ var o=document.createElement('option'); o.value=i; o.textContent='Module '+i; if(i===THRU) o.selected=true; sel.appendChild(o); }
+  sel.onchange=function(){ THRU=parseInt(this.value,10); save('rc_thru',THRU); renderAll(); };
+  renderAll();
+  var first=document.querySelector('.trk');
+  if(first) first.classList.add('open');
+})();
+
+function reloadFromStorage(){
+  SCORE=load('rc_score',{}); CLEAR=load('rc_done',{}); THRU=load('rc_thru',19);
+  document.getElementById('thruSel').value=THRU;
+  renderAll();
+}
+if(window.CloudSync){ window.CloudSync.start({ keys:['rc_score','rc_done','rc_thru'], onData: reloadFromStorage }); }
+</script>
+</body>
+</html>
